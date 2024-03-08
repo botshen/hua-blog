@@ -4,6 +4,7 @@ import { useAjax } from "../lib/ajax";
 import useSWR from "swr";
 import { Button, Card } from "antd";
 import dayjs from "dayjs";
+import s from "./BlogDetail.module.scss";
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -17,21 +18,26 @@ const BlogDetail = () => {
   const nav = useNavigate();
 
   return (
-    <>
-      <Button onClick={() => nav("/blog")}>返回</Button>
+    <div className={s.wrapper}>
       <h1>博客详情</h1>
-      {data && <h2>{data.title}</h2>}
+      <Button onClick={() => nav("/blog")}>返回</Button>
+
+      {data && <h2>博客标题：{data.title}</h2>}
       {data && (
-        <span>
-          创建时间{dayjs(data.created_at).format("YYYY-MM-DD HH:mm:ss")}
-        </span>
+        <div
+          style={{
+            marginBottom: "20px",
+          }}
+        >
+          创建时间：{dayjs(data.created_at).format("YYYY-MM-DD HH:mm:ss")}
+        </div>
       )}
       {data && (
         <Card className="prose">
           <ReactMarkdown>{data.content}</ReactMarkdown>
         </Card>
       )}
-    </>
+    </div>
   );
 };
 

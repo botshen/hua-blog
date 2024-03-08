@@ -19,7 +19,6 @@ const onFinishFailed: FormProps<FieldType>["onFinishFailed"] = (errorInfo) => {
 };
 const BlogNew = () => {
   const nav = useNavigate();
-
   const [value, setValue] = useState("");
   const onFinish: FormProps<FieldType>["onFinish"] = (values) => {
     console.log("Success:", values);
@@ -61,9 +60,16 @@ const BlogNew = () => {
           />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit">
-            Submit
+          <Button
+            type="primary"
+            htmlType="submit"
+            style={{
+              marginRight: "10px",
+            }}
+          >
+            创建博客
           </Button>
+          <Button onClick={() => nav("/blog")}>取消</Button>
         </Form.Item>
       </Form>
     </div>

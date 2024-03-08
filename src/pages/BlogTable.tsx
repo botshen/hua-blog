@@ -19,6 +19,8 @@ interface DataType {
 const BlogTable: React.FC = () => {
   const nav = useNavigate();
   const [currentId, setCurrentId] = useState<number | null>(null);
+  const [pageIndex, setPageIndex] = useState(1);
+  const [order, setOrder] = useState("descend");
 
   const columns: TableProps<DataType>["columns"] = [
     {
@@ -43,7 +45,12 @@ const BlogTable: React.FC = () => {
       render: (_, record) => (
         <Space size="middle">
           <Link to={`/blog/${record.id}`}>查看博客</Link>
-          <Button type="link" onClick={() => handleDelete(record.id)}>
+          <Link to={`/blog/${record.id}/edit`}>编辑博客</Link>
+          <Button
+            style={{ marginLeft: "-14px" }}
+            type="link"
+            onClick={() => handleDelete(record.id)}
+          >
             删除博客
           </Button>
         </Space>
@@ -53,13 +60,12 @@ const BlogTable: React.FC = () => {
   const { destroy, get } = useAjax();
   const { mutate } = useSWRConfig();
   const { data } = useSWR(
-    "/api/v1/blogs",
-    async (path) => (await get<Resource<any>>(path)).data.resource
+    `/api/v1/blogs?page=${pageIndex}&order=${order}`,
+    async (path) => (await get<Resources<any>>(path)).data
   );
 
   const handleDelete = async (id: number) => {
-    setCurrentId(id); // 将当前博客 ID 存储在状态中
-
+    setCurrentId(id);
     setOpen(true);
   };
   const handleTableChange = async (
@@ -68,29 +74,43 @@ const BlogTable: React.FC = () => {
     sorter: { order: string },
     extra: any
   ) => {
-    const res = await get(`/api/v1/blogs?order=${sorter.order}`);
-    mutate("/api/v1/blogs", res.data.resource, false);
+    setOrder(sorter.order);
   };
+
   const handleAddBlog = () => {
     nav("/blog/new");
   };
   const [open, setOpen] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
-  const [modalText, setModalText] = useState("确定删除这篇博客吗？");
+  const [modalText] = useState("确定删除这篇博客吗？");
   const handleOk = async () => {
     if (currentId === null) return;
     setConfirmLoading(true);
     await destroy(`/api/v1/blogs/${currentId}`);
-    mutate("/api/v1/blogs");
-    setCurrentId(null); // 删除完成后将博客 ID 置为空
+    if (data && data.resources && data.resources.length === 1) {
+      // If the current page only had one item left before deletion,
+      // navigate back to the first page after deletion.
+      setPageIndex(1);
 
+      // Mutate to re-fetch the first page.
+      mutate(`/api/v1/blogs?page=1&order=${order}`);
+    } else {
+      // Otherwise, revalidate the current page.
+      mutate(`/api/v1/blogs?page=${pageIndex}&order=${order}`);
+    }
+
+    // mutate(`/api/v1/blogs?page=${pageIndex}&order=${order}`);
+    setCurrentId(null); // 删除完成后将博客 ID 置为空
     setConfirmLoading(false);
     setOpen(false); // 关闭模态框
   };
 
   const handleCancel = () => {
-    console.log("Clicked cancel button");
     setOpen(false);
+  };
+
+  const getPageContent = async (page: number) => {
+    setPageIndex(page); // Update current page before fetching data
   };
   return (
     <>
@@ -105,8 +125,14 @@ const BlogTable: React.FC = () => {
         <Table
           columns={columns}
           onChange={handleTableChange}
-          dataSource={data}
+          dataSource={data?.resources || []}
           rowKey={(data) => data.id}
+          pagination={{
+            current: pageIndex,
+            total: data?.pager?.count || 0,
+            pageSize: 5,
+            onChange: getPageContent,
+          }}
         />
       </div>
       <Modal
