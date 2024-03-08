@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Modal, Space, Table } from "antd";
+import { Button, Modal, Space, Table, TablePaginationConfig } from "antd";
 import { TableProps } from "antd";
 import s from "./BlogTable.module.scss";
 import useSWR from "swr";
@@ -7,6 +7,11 @@ import { useAjax } from "../lib/ajax";
 import dayjs from "dayjs";
 import { useSWRConfig } from "swr";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  FilterValue,
+  SorterResult,
+  TableCurrentDataSource,
+} from "antd/es/table/interface";
 
 interface DataType {
   key: string;
@@ -20,7 +25,7 @@ const BlogTable: React.FC = () => {
   const nav = useNavigate();
   const [currentId, setCurrentId] = useState<number | null>(null);
   const [pageIndex, setPageIndex] = useState(1);
-  const [order, setOrder] = useState("descend");
+  const [order, setOrder] = useState<string>("descend");
 
   const columns: TableProps<DataType>["columns"] = [
     {
@@ -59,7 +64,7 @@ const BlogTable: React.FC = () => {
   ];
   const { destroy, get } = useAjax();
   const { mutate } = useSWRConfig();
-  const { data } = useSWR(
+  const { data, isLoading } = useSWR(
     `/api/v1/blogs?page=${pageIndex}&order=${order}`,
     async (path) => (await get<Resources<any>>(path)).data
   );
@@ -69,12 +74,12 @@ const BlogTable: React.FC = () => {
     setOpen(true);
   };
   const handleTableChange = async (
-    _pagination: any,
-    filters: any,
-    sorter: { order: string },
-    extra: any
+    _pagination: TablePaginationConfig,
+    _filters: Record<string, FilterValue | null>,
+    sorter: any,
+    _extra: TableCurrentDataSource<DataType>
   ) => {
-    setOrder(sorter.order);
+    setOrder(sorter.order as string);
   };
 
   const handleAddBlog = () => {
@@ -88,18 +93,12 @@ const BlogTable: React.FC = () => {
     setConfirmLoading(true);
     await destroy(`/api/v1/blogs/${currentId}`);
     if (data && data.resources && data.resources.length === 1) {
-      // If the current page only had one item left before deletion,
-      // navigate back to the first page after deletion.
       setPageIndex(1);
 
-      // Mutate to re-fetch the first page.
       mutate(`/api/v1/blogs?page=1&order=${order}`);
     } else {
-      // Otherwise, revalidate the current page.
       mutate(`/api/v1/blogs?page=${pageIndex}&order=${order}`);
     }
-
-    // mutate(`/api/v1/blogs?page=${pageIndex}&order=${order}`);
     setCurrentId(null); // 删除完成后将博客 ID 置为空
     setConfirmLoading(false);
     setOpen(false); // 关闭模态框
@@ -124,6 +123,7 @@ const BlogTable: React.FC = () => {
         </Button>
         <Table
           columns={columns}
+          loading={isLoading}
           onChange={handleTableChange}
           dataSource={data?.resources || []}
           rowKey={(data) => data.id}
